@@ -1,4 +1,4 @@
-import React, {Component, Fragment} from 'react';
+import React, {useState} from 'react';
 import NavBar from "./NavBar";
 import axios from "axios";
 import Search from "./Search";
@@ -7,110 +7,64 @@ import {BrowserRouter, Switch, Route} from "react-router-dom"
 import AboutPage from "./AboutPage";
 import Users from "./Users";
 import UserDetails from "./UserDetails";
+import GithubState from "../context/githubState";
 
-class App extends Component {
+const App = () => {
 
-    constructor(props) {
-        super(props);
+    const [loading, setLoading] = useState(false);
+    const [alert, setAlert] = useState(null);
+    const [repos, setRepos] = useState([]);
 
-        this.searchUsers = this.searchUsers.bind(this);
-        this.clearUsers = this.clearUsers.bind(this);
-        this.setAlert = this.setAlert.bind(this);
-        this.getUser = this.getUser.bind(this);
-        this.getUserRepos = this.getUserRepos.bind(this);
 
-        this.state = {
-            loading: false,
-            users: [],
-            repos: [],
-            user: {},
-            alert: null
-        }
-    }
-
-    componentDidMount() {
-        // this.setState({
-        //     loading: true
-        // });
-        //
-        // axios.get("https://api.github.com/users")
-        //     .then(response => this.setState({users: response.data, loading: false}))
-    }
-
-    searchUsers(keyword) {
-        this.setState({
-            loading: true
-        });
-
-        axios.get(`https://api.github.com/search/users?q=${keyword}`)
-            .then(response => this.setState({users: response.data.items, loading: false}))
-    }
-
-    clearUsers() {
-        this.setState({
-            users: []
-        })
-    }
-
-    setAlert(msg, type) {
-        this.setState({
+    const setAlertMsg = (msg, type) => {
+        setAlert({
             alert: {msg, type}
         });
 
         setTimeout(() => {
-            this.setState({
-                alert: null
-            });
+            setAlert(null);
 
         }, 3000);
     }
 
-    getUser(username) {
-        this.setState({loading: true});
-        axios.get(`https://api.github.com/users/${username}`)
-            .then(res => this.setState({user: res.data, loading: false}));
-    }
 
-    getUserRepos(username) {
-        this.setState({loading: true});
+    const getUserRepos = (username) => {
+        setLoading(true);
         axios.get(`https://api.github.com/users/${username}/repos`)
-            .then(response => this.setState({repos: response.data, loading: false}));
+            .then(response => {
+                setRepos(response.data);
+                setLoading(false);
+            });
     }
 
-    render() {
-        return (
+    return (
+        <GithubState>
             <BrowserRouter>
-                <NavBar title="Github Finder" icon="fab fa-github"/>
-                <Alert alert={this.state.alert}/>
-                <Switch>
+            <NavBar title="Github Finder" icon="fab fa-github"/>
+            <Alert alert={alert}/>
+            <Switch>
 
-                    <Route exact path="/" render={props => (
-                        <>
-                            <Search searchUsers={this.searchUsers}
-                                    clearUsers={this.clearUsers}
-                                    showClearButton={this.state.users.length > 0 ? true : false}
-                                    setAlert={this.setAlert}/>
+                <Route exact path="/" render={props => (
+                    <>
+                        <Search setAlert={setAlertMsg}/>
+                        <Users />
+                    </>
+                )}/>
 
+                <Route path="/about" component={AboutPage}/>
+                <Route exact path="/user/:login" render={props => (
+                    <UserDetails
+                        {...props}
+                        getUserRepos={getUserRepos}
+                        repos={repos}
+                        />
+                )}/>
+            </Switch>
 
-                            <Users users={this.state.users} loading={this.state.loading}/>
-                        </>
-                    )}/>
+        </BrowserRouter>
+        </GithubState>
+    );
 
-                    <Route path="/about" component={AboutPage}/>
-                    <Route exact path="/user/:login" render={props => (
-                        <UserDetails
-                            {...props}
-                            getUser={this.getUser}
-                            user={this.state.user}
-                            getUserRepos={this.getUserRepos}
-                            repos={this.state.repos}
-                            loading={this.state.loading} />
-                    )}/>
-                </Switch>
-
-            </BrowserRouter>
-        );
-    }
 }
 
 export default App;
